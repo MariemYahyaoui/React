@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { fetchProducts } from "../../../application/usecases/fetchProducts";
 import PdfProcessor from "../../../data/file-processor/PdfProcessor";
 
@@ -6,21 +6,27 @@ export default function SearchPage({ onSelectProduct }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [file, setFile] = useState(null);
+  const fileInputRef = useRef(null);
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
-    if (!selectedFile) return;
+
+    if (!selectedFile) {
+      setFile(null);
+      return;
+    }
 
     const allowedTypes = [
       "application/pdf",
       "text/csv",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // XLSX
+      "application/vnd.ms-excel", // XLS
     ];
 
     if (!allowedTypes.includes(selectedFile.type)) {
-      alert("Only PDF, CSV, or XLSX files are allowed!");
+      alert("Only PDF or CSV files are allowed!");
       e.target.value = "";
+      setFile(null);
       return;
     }
 
@@ -28,13 +34,43 @@ export default function SearchPage({ onSelectProduct }) {
   };
 
   const handleFileUpload = async () => {
-    if (!file) return alert("Please select a file first.");
+    if (!file) {
+      alert("❌ Please select a file before uploading.");
+      return;
+    }
+
     try {
-      const processor = new PdfProcessor();
+      let processor;
+
+      switch (file.type) {
+        case "application/pdf":
+          processor = new PdfProcessor();
+          break;
+        case "text/csv": {
+          const CsvProcessor = (await import("../../../data/file-processor/csvProcessor")).default;
+          processor = new CsvProcessor();
+          break;
+        }
+        default:
+          alert("❌ Unsupported file type.");
+          return;
+      }
+
       const data = await processor.parse(file);
-      alert(`${data.length} products processed from file`);
+
+      if (!data || data.length === 0) {
+        alert("❌ No products found in file. Upload failed.");
+        return;
+      }
+
+      alert(`✅ ${data.length} products processed from file`);
+
     } catch (err) {
-      alert("Error processing file: " + err.message);
+      alert("❌ Error processing file: " + err.message);
+    } finally {
+      // Always reset input so state is clean
+      setFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -52,13 +88,14 @@ export default function SearchPage({ onSelectProduct }) {
         <input
           type="file"
           className="form-control me-2"
-          accept=".pdf,.csv,.xlsx"
+          accept=".pdf,.csv"
           onChange={handleFileChange}
+          ref={fileInputRef}
         />
         <button
           className="btn btn-primary"
           onClick={handleFileUpload}
-          disabled={!file}
+          disabled={!file} // Cannot click without a file
         >
           Upload
         </button>
@@ -88,8 +125,12 @@ export default function SearchPage({ onSelectProduct }) {
               onClick={() => onSelectProduct(p)}
               style={{ cursor: "pointer" }}
             >
-              <span>{p.name} ({p.reference})</span>
-              <span className="badge bg-primary rounded-pill">{p.price}€</span>
+              <span>
+                {p.name} ({p.reference})
+              </span>
+              <span className="badge bg-primary rounded-pill">
+                {p.price}€
+              </span>
             </li>
           ))}
         </ul>

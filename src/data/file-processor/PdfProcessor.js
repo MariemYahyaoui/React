@@ -47,20 +47,20 @@ export default class PdfProcessor extends FileProcessorPort {
         const lastToken = priceMatch[priceMatch.length - 1];
 
         // normalize number: replace comma decimal with dot, remove thousand separators
-        let normalized = lastToken.replace(/\s/g, "");
+          let normalized = lastToken.replace(/\s/g, "");
         if (normalized.includes(",") && normalized.includes(".")) {
           const lastDot = normalized.lastIndexOf(".");
           const lastComma = normalized.lastIndexOf(",");
           if (lastComma > lastDot) {
             // comma decimal
-            normalized = normalized.replace(/\./g, "").replace(",", ".");
+              normalized = normalized.replace(/\./g, "").replace(",", ".");
           } else {
             // dot decimal
             normalized = normalized.replace(/,/g, "");
           }
         } else if (normalized.includes(",")) {
           // treat comma as decimal
-          normalized = normalized.replace(/\./g, "").replace(",", ".");
+            normalized = normalized.replace(/\./g, "").replace(",", ".");
         } else {
           // only dots or only digits — remove any thousand separators (commas)
           normalized = normalized.replace(/,/g, "");
@@ -69,7 +69,7 @@ export default class PdfProcessor extends FileProcessorPort {
         const price = Number(parseFloat(normalized));
         if (!isNaN(price)) {
           // remove the price token from the raw line to get candidate name/reference
-          const namePart = raw.replace(lastToken, "").replace(/\s{2,}/g, " ").trim();
+            const namePart = raw.replace(lastToken, "").replace(/\s{2,}/g, " ").trim();
 
           // attempt to extract a reference: look for tokens like (REF: XYZ) or [REF] or sequences of letters/numbers
           let reference = "";
@@ -98,7 +98,7 @@ export default class PdfProcessor extends FileProcessorPort {
 
     if (rows.length === 0) {
       throw new Error(
-        "No price lines detected in PDF. The file format may not be compatible with automatic parsing."
+        "Aucune ligne de prix détectée dans le PDF.Le format de fichier peut ne pas être compatible avec l'analyse automatique."
       );
     }
 

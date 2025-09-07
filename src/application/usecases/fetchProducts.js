@@ -1,8 +1,6 @@
+import ProductRepository from "../../data/repositories/ProductRepository";
 
-import ProductRepository from '../../data/repositories/ProductRepository';
-
-export async function fetchProducts(query) {
+export async function fetchProducts(query, filters = {}) {
   const repo = new ProductRepository();
-  const results = await repo.search(query);
-  return results;
+  return repo.search(query, filters);
 }

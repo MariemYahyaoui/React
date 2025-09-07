@@ -44,7 +44,7 @@ const HomePage = () => {
     }
   };
 
-  // Recherche
+  // Search
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!query.trim()) return;
@@ -56,36 +56,63 @@ const HomePage = () => {
     }
   };
 
-  // Sélection produit
+  // Toggle selection (unlimited)
   const toggleSelectProduct = (product) => {
-    if (selectedProducts.find((p) => p.id === product.id)) {
+    const isSelected = selectedProducts.find((p) => p.id === product.id);
+    if (isSelected) {
       setSelectedProducts(selectedProducts.filter((p) => p.id !== product.id));
-    } else if (selectedProducts.length < 2) {
-      setSelectedProducts([...selectedProducts, product]);
     } else {
-      alert("Vous ne pouvez sélectionner que deux produits pour comparer.");
+      setSelectedProducts([...selectedProducts, product]);
     }
   };
 
-  // Comparaison
+  // Compare products
   const handleCompare = async () => {
-    if (selectedProducts.length !== 2) {
-      alert("Veuillez sélectionner exactement deux produits pour comparer.");
+    if (selectedProducts.length === 0) {
+      alert("Veuillez sélectionner au moins un produit pour comparer.");
       return;
     }
+
     setError("");
     try {
-      const l = await compareProducts(selectedProducts[0].id);
-      const r = await compareProducts(selectedProducts[1].id);
+      const comparisons = await Promise.all(
+        selectedProducts.map((p) => compareProducts(p.id))
+      );
 
-      // Déterminer le meilleur prix et dernière sortie
-      const allPrices = [...l.prices, ...r.prices];
-      const minPriceEntry = allPrices.reduce((prev, curr) => prev.price < curr.price ? prev : curr);
-      const latestDateEntry = allPrices.reduce((prev, curr) => new Date(prev.date) > new Date(curr.date) ? prev : curr);
+      // Flatten all prices
+      const allPrices = comparisons.flatMap(c => c.prices);
+
+      // Best price
+      const minPriceEntry = allPrices.reduce((prev, curr) =>
+        prev.price < curr.price ? prev : curr
+      );
+
+      // Parse DD/MM/YY safely
+      const parseDate = (d) => {
+        if (!d) return null;
+        const parts = d.split("/");
+        if (parts.length !== 3) return null;
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const year = 2000 + parseInt(parts[2], 10);
+        return new Date(year, month, day);
+      };
+
+      // Latest date
+      const latestDateEntry = allPrices.reduce((prev, curr) => {
+        const prevTime = parseDate(prev.date)?.getTime() || 0;
+        const currTime = parseDate(curr.date)?.getTime() || 0;
+        return prevTime > currTime ? prev : curr;
+      });
+
+      // Map comparison results by product
+      const comparisonMap = selectedProducts.map((p, idx) => ({
+        product: p,
+        data: comparisons[idx],
+      }));
 
       setComparisonResult({
-        left: l,
-        right: r,
+        comparisons: comparisonMap,
         bestPrice: minPriceEntry,
         latestDate: latestDateEntry,
       });
@@ -94,7 +121,19 @@ const HomePage = () => {
     }
   };
 
-  const formatDate = (d) => d ? new Date(d).toLocaleDateString("fr-FR") : "N/A";
+  // Safe formatting
+  const formatDate = (d) => {
+    if (!d) return "N/A";
+    const dateObj = (() => {
+      const parts = d.split("/");
+      if (parts.length !== 3) return new Date(d); // fallback
+      const day = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const year = 2000 + parseInt(parts[2], 10);
+      return new Date(year, month, day);
+    })();
+    return isNaN(dateObj) ? "N/A" : dateObj.toLocaleDateString("fr-FR");
+  };
 
   return (
     <div className="container py-5">
@@ -125,40 +164,41 @@ const HomePage = () => {
         <button type="submit" className="btn btn-success">Rechercher</button>
       </form>
 
-      {/* Résultats */}
+      {/* Results */}
       <div className="row">
-        {products.map((p) => (
-          <div key={p.id} className="col-md-6 mb-4">
-            <div className="card shadow-sm h-100">
-              <div className="card-body d-flex justify-content-between align-items-center">
-                <div>
-                  <h5 className="card-title">{p.name}</h5>
-                  <p className="card-text text-muted mb-1">{p.supplier}</p>
-                  <p className="card-text fw-bold">Prix: {p.price?.toFixed(2)}€</p>
-                  <p className="card-text">Sortie: {formatDate(p.date)}</p>
+        {products.map((p) => {
+          const isSelected = selectedProducts.find((sp) => sp.id === p.id);
+          return (
+            <div key={p.id} className="col-md-6 mb-4">
+              <div className="card shadow-sm h-100">
+                <div className="card-body d-flex justify-content-between align-items-center">
+                  <div>
+                    <h5 className="card-title">{p.name}</h5>
+                    <p className="card-text text-muted mb-1">{p.supplier}</p>
+                    <p className="card-text fw-bold">Prix: {p.price?.toFixed(2)}€</p>
+                    <p className="card-text">Sortie: {formatDate(p.date)}</p>
 
-                  {comparisonResult?.bestPrice?.productId === p.id && (
-                    <span className="badge bg-success me-2">Meilleur prix</span>
-                  )}
-                  {comparisonResult?.latestDate?.productId === p.id && (
-                    <span className="badge bg-info">Dernière sortie</span>
-                  )}
+                    {comparisonResult?.bestPrice?.productId === p.id && (
+                      <span className="badge bg-success me-2">Meilleur prix</span>
+                    )}
+                    {comparisonResult?.latestDate?.productId === p.id && (
+                      <span className="badge bg-info">Dernière sortie</span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => toggleSelectProduct(p)}
+                    className={`btn ${isSelected ? "btn-danger" : "btn-success"}`}
+                  >
+                    {isSelected ? "Désélectionner" : "Sélectionner"}
+                  </button>
                 </div>
-                <button
-                  onClick={() => toggleSelectProduct(p)}
-                  className={`btn ${
-                    selectedProducts.find((sp) => sp.id === p.id) ? "btn-danger" : "btn-success"
-                  }`}
-                >
-                  {selectedProducts.find((sp) => sp.id === p.id) ? "Désélectionner" : "Sélectionner"}
-                </button>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      {/* Sélection pour comparaison */}
+      {/* Selected products */}
       {selectedProducts.length > 0 && (
         <div className="mb-4">
           <h4 className="text-secondary">Produits sélectionnés pour comparaison :</h4>

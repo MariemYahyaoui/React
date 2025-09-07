@@ -4,7 +4,7 @@ export const uploadFile = async (file) => {
     setTimeout(() => {
       resolve({
         success: true,
-        message: "File uploaded successfully",
+        message: "Fichier téléchargé avec succès ",
         fileName: file.name,
       });
     }, 1000);
