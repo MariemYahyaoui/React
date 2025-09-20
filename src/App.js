@@ -1,6 +1,6 @@
 import React from "react";
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import HomePage from "./presentation/pages/HomePage/HomePage.jsx";
 import SearchPage from "./presentation/pages/SearchPage/SearchPage.jsx";
 import ComparisonPage from "./presentation/pages/ComparisonPage/ComparisonPage.jsx";
@@ -16,8 +16,14 @@ function App() {
     <SelectedProductsProvider>
       <Router>
         <Routes>
+          {/* Default route redirects to login */}
+          <Route path="/" element={<Navigate to="/login" replace />} />
+
+          
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/" element={<PrivateRoute><HomePage /></PrivateRoute>} />
+
+          {/* Protected routes */}
+          <Route path="/home" element={<PrivateRoute><HomePage /></PrivateRoute>} />
           <Route path="/search" element={<PrivateRoute><SearchPage /></PrivateRoute>} />
           <Route path="/compare" element={<PrivateRoute><ComparisonPage /></PrivateRoute>} />
         </Routes>

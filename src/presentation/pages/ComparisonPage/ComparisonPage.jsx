@@ -1,81 +1,57 @@
-import { useEffect, useState } from "react";
-import { useSelectedProducts } from '../../providers/SelectProductsContext';
-import { compareProducts } from "../../../application/usecases/compareProducts";
-import PriceDisplay from "../../components/PriceDisplay";
-import PriceComparisonTable from "../../components/PriceComparisonTable";
-import PriceHistoryChart from "../../components/PriceHistoryChart";
-import { useNavigate } from "react-router-dom";
+import { useMemo } from "react";
+import { useSelectedProducts } from "../../providers/SelectProductsContext";
 
 export default function ComparisonPage() {
   const { selectedProducts } = useSelectedProducts();
-  const [productsData, setProductsData] = useState([]);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
 
-  useEffect(() => {
-    async function load() {
-      if (!selectedProducts || selectedProducts.length === 0) return;
-      setLoading(true);
-      setError("");
-      try {
-        const dataPromises = selectedProducts.map(p => compareProducts(p.id));
-        const results = await Promise.all(dataPromises);
-        setProductsData(results);
-      } catch (err) {
-        console.error(err);
-        setError(err.message || "Comparison error");
-      } finally {
-        setLoading(false);
+  // 🔹 Compute best product locally (temporary)
+  const bestProduct = useMemo(() => {
+    if (!selectedProducts || selectedProducts.length === 0) return null;
+
+    return [...selectedProducts].sort((a, b) => {
+      if (a.price === b.price) {
+        // If same price, compare by date
+        return new Date(a.date) - new Date(b.date);
       }
-    }
-    load();
+      return a.price - b.price; // Lower price first
+    })[0];
   }, [selectedProducts]);
 
   if (!selectedProducts || selectedProducts.length === 0) {
     return (
       <div className="p-3">
         <div className="alert alert-warning">
-          Select products on the Home page to compare.
+          Sélectionnez des produits pour comparer.
         </div>
-        <button className="btn btn-primary" onClick={() => navigate("/")}>
-          Go to Home
-        </button>
       </div>
     );
   }
 
-  if (loading) return <div className="p-3">Loading comparison...</div>;
-
   return (
     <div className="p-3">
-      {error && <div className="alert alert-danger">{error}</div>}
+      {/* 🔹 Best Product Section */}
+      {bestProduct && (
+        <div className="alert alert-success">
+          <h5>Meilleur produit trouvé</h5>
+          <p>
+            <strong>{bestProduct.name}</strong> ({bestProduct.reference}) <br />
+            Fournisseur : {bestProduct.supplier || "—"} <br />
+            Prix : {bestProduct.price} € <br />
+            Date : {bestProduct.date || "—"}
+          </p>
+        </div>
+      )}
 
-      <div className="row">
-        {productsData.map((data, index) => (
-          <div key={index} className="col-12 col-md-6 col-lg-4 mb-4">
-            {data ? (
-              <>
-                <PriceDisplay
-                  product={selectedProducts[index]}
-                  best={data.best}
-                  worst={data.worst}
-                />
-                <PriceComparisonTable
-                  prices={data.prices}
-                  best={data.best}
-                  worst={data.worst}
-                />
-                <PriceHistoryChart chartData={data.chartData} />
-              </>
-            ) : (
-              <div className="alert alert-warning">
-                No price data available for {selectedProducts[index].name}.
-              </div>
-            )}
-          </div>
+      {/* 🔹 List of selected products */}
+      <h5 className="mt-4">Produits sélectionnés :</h5>
+      <ul className="list-group">
+        {selectedProducts.map((p) => (
+          <li key={p.id} className="list-group-item">
+            {p.name} ({p.reference}) — {p.supplier || "—"} — {p.price} € —{" "}
+            {p.date || "—"}
+          </li>
         ))}
-      </div>
+      </ul>
     </div>
   );
 }

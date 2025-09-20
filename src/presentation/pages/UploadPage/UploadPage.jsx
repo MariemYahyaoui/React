@@ -1,13 +1,12 @@
-import { useState, useRef } from "react";
-import { fetchProducts } from "../../../application/usecases/fetchProducts";
+import React, { useState, useRef } from "react";
 import PdfProcessor from "../../../data/file-processor/PdfProcessor";
+// Optional: CSV/XLSX processors can be added later
 
-export default function SearchPage({ onSelectProduct }) {
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState([]);
+export default function UploadPage() {
   const [file, setFile] = useState(null);
   const fileInputRef = useRef(null);
 
+  // Handle file selection
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
 
@@ -24,7 +23,7 @@ export default function SearchPage({ onSelectProduct }) {
     ];
 
     if (!allowedTypes.includes(selectedFile.type)) {
-      alert("Only PDF or CSV files are allowed!");
+      alert("❌ Seuls les fichiers PDF, CSV ou Excel sont autorisés!");
       e.target.value = "";
       setFile(null);
       return;
@@ -33,15 +32,17 @@ export default function SearchPage({ onSelectProduct }) {
     setFile(selectedFile);
   };
 
+  // Handle file upload
   const handleFileUpload = async () => {
     if (!file) {
-      alert("❌ Please select a file before uploading.");
+      alert("❌ Veuillez sélectionner un fichier avant de le télécharger.");
       return;
     }
 
     try {
       let processor;
 
+      // Choose processor based on file type
       switch (file.type) {
         case "application/pdf":
           processor = new PdfProcessor();
@@ -52,33 +53,26 @@ export default function SearchPage({ onSelectProduct }) {
           break;
         }
         default:
-          alert("❌ Unsupported file type.");
+          alert("❌ Type de fichier non pris en charge pour le moment.");
           return;
       }
 
       const data = await processor.parse(file);
 
       if (!data || data.length === 0) {
-        alert("❌ No products found in file. Upload failed.");
+        alert("❌ Aucun produit trouvé dans le fichier. Échec du téléchargement.");
         return;
       }
 
-      alert(`✅ ${data.length} products processed from file`);
+      alert(`✅ ${data.length} produits traités avec succès.`);
 
     } catch (err) {
-      alert("❌ Error processing file: " + err.message);
+      alert("❌ Erreur lors du traitement du fichier :" + err.message);
     } finally {
-      // Always reset input so state is clean
+      // Reset file input and state
       setFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
-  };
-
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!query) return;
-    const data = await fetchProducts(query);
-    setResults(data);
   };
 
   return (
@@ -88,53 +82,24 @@ export default function SearchPage({ onSelectProduct }) {
         <input
           type="file"
           className="form-control me-2"
-          accept=".pdf,.csv"
+          accept=".pdf,.csv,.xlsx,.xls"
           onChange={handleFileChange}
           ref={fileInputRef}
         />
-        <button
-          className="btn btn-primary"
-          onClick={handleFileUpload}
-          disabled={!file} // Cannot click without a file
-        >
-          Upload
-        </button>
+       <button
+  className="btn"
+  onClick={handleFileUpload}
+  disabled={!file}
+  style={{
+    backgroundColor: "#DCDCDC",
+    color: "#000", // black text for contrast
+    border: "1px solid #ccc"
+  }}
+>
+  Télécharger
+</button>
+
       </div>
-
-      {/* Search */}
-      <form onSubmit={handleSearch} className="d-flex mb-3">
-        <input
-          type="text"
-          className="form-control me-2"
-          placeholder="Search product..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-        <button type="submit" className="btn btn-success">
-          Search
-        </button>
-      </form>
-
-      {/* Results */}
-      {results.length > 0 && (
-        <ul className="list-group">
-          {results.map((p) => (
-            <li
-              key={p.id}
-              className="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
-              onClick={() => onSelectProduct(p)}
-              style={{ cursor: "pointer" }}
-            >
-              <span>
-                {p.name} ({p.reference})
-              </span>
-              <span className="badge bg-primary rounded-pill">
-                {p.price}€
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }
